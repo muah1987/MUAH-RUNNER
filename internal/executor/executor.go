@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -192,7 +193,7 @@ type timestampWriter struct {
 func (tw *timestampWriter) Write(p []byte) (n int, err error) {
 	tw.buf = append(tw.buf, p...)
 	for {
-		idx := strings.Index(string(tw.buf), "\n")
+		idx := bytes.IndexByte(tw.buf, '\n')
 		if idx < 0 {
 			break
 		}
