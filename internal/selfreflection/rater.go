@@ -10,10 +10,10 @@ PlanDriftCount  int
 MissingTools    []string
 KeyLesson       string
 // Scoring weights
-SpeedScore    float64 // 0-100
-AccuracyScore float64 // 0-100
-EfficiencyScore float64 // 0-100
-AutonomyScore float64  // 0-100
+SpeedScore       float64 // 0-100
+AccuracyScore    float64 // 0-100
+EfficiencyScore  float64 // 0-100
+AutonomyScore    float64 // 0-100
 ImprovementScore float64 // 0-100
 }
 
@@ -26,14 +26,17 @@ efficiency := m.EfficiencyScore
 autonomy := m.AutonomyScore
 improvement := m.ImprovementScore
 
-// Default heuristics if not provided
-if accuracy == 0 && m.ErrorCount >= 0 {
+// Default heuristics if not provided.
+// Only apply the error/retry penalty when the explicit score was not set
+// (zero) AND there are actual errors/retries (> 0).  Using >= 0 would always
+// trigger even when no errors occurred, overriding a legitimate score of 0.
+if accuracy == 0 && m.ErrorCount > 0 {
 accuracy = 100 - float64(m.ErrorCount)*10
 if accuracy < 0 {
 accuracy = 0
 }
 }
-if efficiency == 0 && m.RetryCount >= 0 {
+if efficiency == 0 && m.RetryCount > 0 {
 efficiency = 100 - float64(m.RetryCount)*5
 if efficiency < 0 {
 efficiency = 0

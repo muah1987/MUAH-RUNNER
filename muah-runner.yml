@@ -47,4 +47,8 @@ webhooks:
   secret: ""                 # HMAC-SHA256 secret for GitHub webhook verification
 
 secrets:
-  encryption_key: ""         # AES-256-GCM key for CoT vault (generated on first init)
+  # The CoT vault encryption key is never stored in plaintext config.
+  # muah-runner generates and persists it in .muah/config/secrets.enc on first
+  # init.  To supply a key externally, set the MUAH_ENCRYPTION_KEY environment
+  # variable; the runner will use that value instead of the generated one.
+  encryption_key_env: "MUAH_ENCRYPTION_KEY"
