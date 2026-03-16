@@ -1,152 +1,126 @@
 package config
 
 import (
-	"fmt"
-	"os"
-	"strconv"
+"os"
 
-	"gopkg.in/yaml.v3"
+"gopkg.in/yaml.v3"
 )
 
-// Config holds the full application configuration.
 type Config struct {
-	Runner   RunnerConfig   `yaml:"runner"`
-	Server   ServerConfig   `yaml:"server"`
-	Executor ExecutorConfig `yaml:"executor"`
-	Health   HealthConfig   `yaml:"health"`
-	Webhooks WebhookConfig  `yaml:"webhooks"`
-	Secrets  SecretsConfig  `yaml:"secrets"`
+Runner        RunnerConfig        `yaml:"runner"`
+Server        ServerConfig        `yaml:"server"`
+Executor      ExecutorConfig      `yaml:"executor"`
+Health        HealthConfig        `yaml:"health"`
+Swarm         SwarmConfig         `yaml:"swarm"`
+Questions     QuestionsConfig     `yaml:"questions"`
+SelfReflection SelfReflectionConfig `yaml:"selfreflection"`
+MCP           MCPConfig           `yaml:"mcp"`
 }
 
 type RunnerConfig struct {
-	Name              string   `yaml:"name"`
-	Labels            []string `yaml:"labels"`
-	WorkDir           string   `yaml:"work_dir"`
-	Concurrency       int      `yaml:"concurrency"`
-	HeartbeatInterval int      `yaml:"heartbeat_interval"`
+Name              string `yaml:"name"`
+MuahDir           string `yaml:"muah_dir"`
+Concurrency       int    `yaml:"concurrency"`
+HeartbeatInterval int    `yaml:"heartbeat_interval"`
 }
 
 type ServerConfig struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
-	TLS  bool   `yaml:"tls"`
+Host string `yaml:"host"`
+Port int    `yaml:"port"`
 }
 
 type ExecutorConfig struct {
-	Type         string `yaml:"type"`
-	DockerImage  string `yaml:"docker_image"`
-	Timeout      int    `yaml:"timeout"`
-	MaxRetries   int    `yaml:"max_retries"`
-	RetryBackoff int    `yaml:"retry_backoff"`
+Type       string `yaml:"type"`
+Timeout    int    `yaml:"timeout"`
+MaxRetries int    `yaml:"max_retries"`
 }
 
 type HealthConfig struct {
-	MetricsPort   int `yaml:"metrics_port"`
-	CheckInterval int `yaml:"check_interval"`
+MetricsPort int `yaml:"metrics_port"`
 }
 
-type WebhookConfig struct {
-	Enabled bool     `yaml:"enabled"`
-	URLs    []string `yaml:"urls"`
-	Secret  string   `yaml:"secret"`
+type SwarmConfig struct {
+Enabled       bool   `yaml:"enabled"`
+MaxPartySize  int    `yaml:"max_party_size"`
+DefaultLeader string `yaml:"default_leader"`
 }
 
-type SecretsConfig struct {
-	EncryptionKey string `yaml:"encryption_key"`
+type QuestionsConfig struct {
+TimerSeconds int  `yaml:"timer_seconds"`
+AutoMode     bool `yaml:"auto_mode"`
 }
 
-// Defaults returns a Config populated with sensible defaults.
-func Defaults() *Config {
-	return &Config{
-		Runner: RunnerConfig{
-			Name:              "muah-runner-01",
-			Labels:            []string{},
-			WorkDir:           "/tmp/muah-runner",
-			Concurrency:       4,
-			HeartbeatInterval: 30,
-		},
-		Server: ServerConfig{
-			Host: "0.0.0.0",
-			Port: 8080,
-			TLS:  false,
-		},
-		Executor: ExecutorConfig{
-			Type:         "process",
-			DockerImage:  "ubuntu:22.04",
-			Timeout:      3600,
-			MaxRetries:   3,
-			RetryBackoff: 5,
-		},
-		Health: HealthConfig{
-			MetricsPort:   9090,
-			CheckInterval: 15,
-		},
-		Webhooks: WebhookConfig{
-			Enabled: false,
-			URLs:    []string{},
-			Secret:  "",
-		},
-		Secrets: SecretsConfig{
-			EncryptionKey: "",
-		},
-	}
+type SelfReflectionConfig struct {
+Enabled                  bool `yaml:"enabled"`
+PatternDetectionInterval int  `yaml:"pattern_detection_interval"`
 }
 
-// Load reads a YAML config file and overrides values with environment variables.
-// Returns defaults if the file is not found.
+type MCPConfig struct {
+AutoDiscover     bool `yaml:"auto_discover"`
+RequirePlaywright bool `yaml:"require_playwright"`
+RequireDocker    bool `yaml:"require_docker"`
+}
+
+func DefaultConfig() *Config {
+return &Config{
+Runner: RunnerConfig{
+Name:              "muah-runner-01",
+MuahDir:           ".muah",
+Concurrency:       4,
+HeartbeatInterval: 30,
+},
+Server: ServerConfig{
+Host: "0.0.0.0",
+Port: 8080,
+},
+Executor: ExecutorConfig{
+Type:       "process",
+Timeout:    3600,
+MaxRetries: 3,
+},
+Health: HealthConfig{
+MetricsPort: 9090,
+},
+Swarm: SwarmConfig{
+Enabled:       true,
+MaxPartySize:  6,
+DefaultLeader: "Prishe",
+},
+Questions: QuestionsConfig{
+TimerSeconds: 10,
+AutoMode:     false,
+},
+SelfReflection: SelfReflectionConfig{
+Enabled:                  true,
+PatternDetectionInterval: 5,
+},
+MCP: MCPConfig{
+AutoDiscover:     true,
+RequirePlaywright: true,
+RequireDocker:    true,
+},
+}
+}
+
 func Load(path string) (*Config, error) {
-	cfg := Defaults()
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			applyEnv(cfg)
-			return cfg, nil
-		}
-		return nil, fmt.Errorf("reading config file %q: %w", path, err)
-	}
-
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("parsing config file %q: %w", path, err)
-	}
-
-	applyEnv(cfg)
-	return cfg, nil
+cfg := DefaultConfig()
+data, err := os.ReadFile(path)
+if err != nil {
+if os.IsNotExist(err) {
+return cfg, nil
+}
+return nil, err
+}
+if err := yaml.Unmarshal(data, cfg); err != nil {
+return nil, err
+}
+return cfg, nil
 }
 
-// applyEnv overrides config fields from environment variables.
-func applyEnv(cfg *Config) {
-	if v := os.Getenv("MUAH_RUNNER_NAME"); v != "" {
-		cfg.Runner.Name = v
-	}
-	if v := os.Getenv("MUAH_RUNNER_WORK_DIR"); v != "" {
-		cfg.Runner.WorkDir = v
-	}
-	if v := os.Getenv("MUAH_RUNNER_CONCURRENCY"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Runner.Concurrency = n
-		}
-	}
-	if v := os.Getenv("MUAH_SERVER_HOST"); v != "" {
-		cfg.Server.Host = v
-	}
-	if v := os.Getenv("MUAH_SERVER_PORT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Server.Port = n
-		}
-	}
-	if v := os.Getenv("MUAH_EXECUTOR_TYPE"); v != "" {
-		cfg.Executor.Type = v
-	}
-	if v := os.Getenv("MUAH_HEALTH_METRICS_PORT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Health.MetricsPort = n
-		}
-	}
-	if v := os.Getenv("MUAH_WEBHOOK_SECRET"); v != "" {
-		cfg.Webhooks.Secret = v
-	}
-	if v := os.Getenv("MUAH_SECRETS_ENCRYPTION_KEY"); v != "" {
-		cfg.Secrets.EncryptionKey = v
-	}
+func Save(cfg *Config, path string) error {
+data, err := yaml.Marshal(cfg)
+if err != nil {
+return err
+}
+return os.WriteFile(path, data, 0644)
 }

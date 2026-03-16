@@ -1,62 +1,49 @@
 package api
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"time"
+"context"
+"fmt"
+"net/http"
+"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/muah1987/muah-runner/internal/config"
-	"github.com/muah1987/muah-runner/internal/health"
-	"github.com/muah1987/muah-runner/internal/queue"
-	"github.com/muah1987/muah-runner/internal/sensor"
+"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Server is the HTTP API server.
 type Server struct {
-	cfg     *config.Config
-	caps    *sensor.Capabilities
-	monitor *health.Monitor
-	queue   *queue.Queue
-	httpSrv *http.Server
+host string
+port int
+srv  *http.Server
 }
 
-// NewServer creates a new API server.
-func NewServer(cfg *config.Config, caps *sensor.Capabilities, monitor *health.Monitor, q *queue.Queue) *Server {
-	s := &Server{
-		cfg:     cfg,
-		caps:    caps,
-		monitor: monitor,
-		queue:   q,
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", s.handleHealth)
-	mux.Handle("/metrics", promhttp.HandlerFor(monitor.Metrics().Registry(), promhttp.HandlerOpts{}))
-	mux.HandleFunc("/status", s.handleStatus)
-	mux.HandleFunc("/jobs", s.handleJobs)
-	mux.HandleFunc("/jobs/", s.handleJobByID)
-	mux.HandleFunc("/webhooks/github", s.handleGitHubWebhook)
-	mux.HandleFunc("/api/v1/info", s.handleInfo)
-
-	s.httpSrv = &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-	return s
+func NewServer(host string, port int) *Server {
+return &Server{host: host, port: port}
 }
 
-// Start begins listening and serving HTTP requests.
 func (s *Server) Start() error {
-	return s.httpSrv.ListenAndServe()
+mux := http.NewServeMux()
+mux.HandleFunc("/health", healthHandler)
+mux.HandleFunc("/status", statusHandler)
+mux.Handle("/metrics", promhttp.Handler())
+s.srv = &http.Server{
+Addr:    fmt.Sprintf("%s:%d", s.host, s.port),
+Handler: mux,
+}
+return s.srv.ListenAndServe()
 }
 
-// Stop gracefully shuts down the HTTP server.
 func (s *Server) Stop(ctx context.Context) error {
-	return s.httpSrv.Shutdown(ctx)
+if s.srv != nil {
+return s.srv.Shutdown(ctx)
+}
+return nil
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+fmt.Fprintf(w, `{"status":"ok","time":"%s"}`, time.Now().Format(time.RFC3339))
+}
+
+func statusHandler(w http.ResponseWriter, r *http.Request) {
+w.Header().Set("Content-Type", "application/json")
+fmt.Fprintf(w, `{"runner":"muah-runner","status":"running"}`)
 }

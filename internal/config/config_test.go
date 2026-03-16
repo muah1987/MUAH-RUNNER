@@ -1,78 +1,71 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
-	"testing"
+"os"
+"path/filepath"
+"testing"
 )
 
-func TestDefaults(t *testing.T) {
-	cfg := Defaults()
-	if cfg.Runner.Name != "muah-runner-01" {
-		t.Errorf("expected default runner name, got %q", cfg.Runner.Name)
-	}
-	if cfg.Server.Port != 8080 {
-		t.Errorf("expected default port 8080, got %d", cfg.Server.Port)
-	}
-	if cfg.Executor.Type != "process" {
-		t.Errorf("expected default executor type 'process', got %q", cfg.Executor.Type)
-	}
+func TestDefaultConfig(t *testing.T) {
+cfg := DefaultConfig()
+if cfg.Runner.Name == "" {
+t.Error("expected non-empty runner name")
+}
+if cfg.Runner.MuahDir != ".muah" {
+t.Errorf("expected .muah dir, got %s", cfg.Runner.MuahDir)
+}
+if cfg.Server.Port != 8080 {
+t.Errorf("expected port 8080, got %d", cfg.Server.Port)
+}
 }
 
-func TestLoadMissingFile(t *testing.T) {
-	cfg, err := Load("/nonexistent/path/config.yml")
-	if err != nil {
-		t.Fatalf("expected no error for missing file, got %v", err)
-	}
-	if cfg == nil {
-		t.Fatal("expected non-nil config")
-	}
-	if cfg.Server.Port != 8080 {
-		t.Errorf("expected default port, got %d", cfg.Server.Port)
-	}
+func TestLoadNonExistent(t *testing.T) {
+cfg, err := Load("/nonexistent/path.yml")
+if err != nil {
+t.Fatalf("expected no error for missing file, got %v", err)
+}
+if cfg == nil {
+t.Fatal("expected non-nil config")
+}
 }
 
-func TestLoadYAML(t *testing.T) {
-	content := `
-runner:
-  name: "test-runner"
-  concurrency: 2
-server:
-  port: 9999
-`
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.yml")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := Load(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Runner.Name != "test-runner" {
-		t.Errorf("expected 'test-runner', got %q", cfg.Runner.Name)
-	}
-	if cfg.Runner.Concurrency != 2 {
-		t.Errorf("expected concurrency 2, got %d", cfg.Runner.Concurrency)
-	}
-	if cfg.Server.Port != 9999 {
-		t.Errorf("expected port 9999, got %d", cfg.Server.Port)
-	}
+func TestSaveLoad(t *testing.T) {
+dir := t.TempDir()
+path := filepath.Join(dir, "config.yml")
+cfg := DefaultConfig()
+cfg.Runner.Name = "test-runner"
+if err := Save(cfg, path); err != nil {
+t.Fatalf("save error: %v", err)
+}
+loaded, err := Load(path)
+if err != nil {
+t.Fatalf("load error: %v", err)
+}
+if loaded.Runner.Name != "test-runner" {
+t.Errorf("expected test-runner, got %s", loaded.Runner.Name)
+}
 }
 
-func TestLoadEnvOverride(t *testing.T) {
-	t.Setenv("MUAH_RUNNER_NAME", "env-runner")
-	t.Setenv("MUAH_SERVER_PORT", "7777")
+func TestLoadSecretsNonExistent(t *testing.T) {
+s, err := LoadSecrets("/nonexistent/secrets.json")
+if err != nil {
+t.Fatalf("unexpected error: %v", err)
+}
+if s == nil {
+t.Fatal("expected non-nil secrets")
+}
+}
 
-	cfg, err := Load("/nonexistent/path/config.yml")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Runner.Name != "env-runner" {
-		t.Errorf("expected 'env-runner', got %q", cfg.Runner.Name)
-	}
-	if cfg.Server.Port != 7777 {
-		t.Errorf("expected port 7777, got %d", cfg.Server.Port)
-	}
+func TestLoadSecrets(t *testing.T) {
+dir := t.TempDir()
+path := filepath.Join(dir, "secrets.json")
+data := []byte(`{"github_token":"tok123"}`)
+os.WriteFile(path, data, 0600)
+s, err := LoadSecrets(path)
+if err != nil {
+t.Fatalf("error: %v", err)
+}
+if s.GithubToken != "tok123" {
+t.Errorf("expected tok123, got %s", s.GithubToken)
+}
 }
