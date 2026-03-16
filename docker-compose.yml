@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  muah-runner:
+    build: .
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    volumes:
+      - ./muah-runner.yml:/app/muah-runner.yml:ro
+      - muah-work:/tmp/muah-runner
+    restart: unless-stopped
+    environment:
+      - MUAH_RUNNER_NAME=muah-runner-docker
+
+volumes:
+  muah-work:

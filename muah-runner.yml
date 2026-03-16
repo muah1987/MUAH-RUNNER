@@ -1,0 +1,30 @@
+runner:
+  name: "muah-runner-01"
+  labels: []
+  work_dir: "/tmp/muah-runner"
+  concurrency: 4
+  heartbeat_interval: 30
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  tls: false
+
+executor:
+  type: "process"
+  docker_image: "ubuntu:22.04"
+  timeout: 3600
+  max_retries: 3
+  retry_backoff: 5
+
+health:
+  metrics_port: 9090
+  check_interval: 15
+
+webhooks:
+  enabled: false
+  urls: []
+  secret: ""
+
+secrets:
+  encryption_key: ""
