@@ -1,0 +1,54 @@
+# muah-runner.yml — Full configuration for muah-runner autonomous agent.
+# Sensible defaults are built-in; only override what you need.
+# This file can also live at .muah/config/muah-runner.yml
+
+runner:
+  name: "muah-runner-01"     # Runner display name
+  muah_dir: ".muah"          # Persistent brain directory (relative to project root)
+  concurrency: 4             # Max parallel tasks
+  heartbeat_interval: 30     # Seconds between heartbeats
+
+server:
+  host: "0.0.0.0"            # API bind address
+  port: 8080                 # API listen port
+
+executor:
+  type: "process"            # "process" or "docker"
+  docker_image: "ubuntu:22.04"
+  timeout: 3600              # Task timeout in seconds
+  max_retries: 3
+  retry_backoff: 5
+
+health:
+  metrics_port: 9090
+  check_interval: 15
+
+swarm:
+  enabled: true
+  max_party_size: 6          # Max agents in one party (Vana'diel law: 6)
+  default_leader: "Prishe"   # NPC party leader — the only agent that talks to you
+
+questions:
+  timer_seconds: 10          # Auto-select recommended answer after N seconds
+  auto_mode: false           # true = never wait, always auto-select
+
+selfreflection:
+  enabled: true              # Phase 5 is MANDATORY — set to false only for tests
+  pattern_detection_interval: 5  # Analyse patterns every N runs
+
+mcp:
+  auto_discover: true        # Scan environment for MCP servers on startup
+  require_playwright: true   # Warn if Playwright MCP not found
+  require_docker: true       # Warn if Docker MCP not found
+
+webhooks:
+  enabled: false
+  urls: []
+  secret: ""                 # HMAC-SHA256 secret for GitHub webhook verification
+
+secrets:
+  # The CoT vault encryption key is never stored in plaintext config.
+  # muah-runner generates and persists it in .muah/config/secrets.enc on first
+  # init.  To supply a key externally, set the MUAH_ENCRYPTION_KEY environment
+  # variable; the runner will use that value instead of the generated one.
+  encryption_key_env: "MUAH_ENCRYPTION_KEY"

@@ -1,0 +1,53 @@
+version: "3.9"
+
+# muah-runner docker-compose — persistent, memory-driven autonomous agent runner.
+#
+# Quick start:
+#   docker-compose run --rm muah-runner init   # first-time bootstrap
+#   docker-compose up -d                       # start daemon
+#   docker-compose exec muah-runner muah-runner status
+#   docker-compose logs -f muah-runner
+
+services:
+  muah-runner:
+    build:
+      context: .
+      args:
+        VERSION: "${VERSION:-dev}"
+    image: ghcr.io/muah1987/muah-runner:${VERSION:-dev}
+    container_name: muah-runner
+    ports:
+      - "${MUAH_API_PORT:-8080}:8080"     # REST API + webhooks
+      - "${MUAH_METRICS_PORT:-9090}:9090" # Prometheus metrics
+    volumes:
+      # Runtime config (read-only mount from repo root)
+      - ./muah-runner.yml:/app/muah-runner.yml:ro
+      # Persistent brain — .muah/ survives container restarts
+      - muah-brain:/app/.muah
+      # Working directory for job artifacts
+      - muah-work:/tmp/muah-runner
+    environment:
+      # Runner identity
+      - MUAH_RUNNER_NAME=${MUAH_RUNNER_NAME:-muah-runner-docker}
+      # Point .muah/ at the volume mount
+      - MUAH_DIR=/app/.muah
+      # Platform token (pass in from host environment)
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Swarm: disable interactive questions in container mode
+      - MUAH_AUTO_MODE=true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "./muah-runner", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # muah-brain: the persistent memory, changelog, specs, and tool profiles
+  muah-brain:
+    driver: local
+  # muah-work: job artifact scratch space
+  muah-work:
+    driver: local
